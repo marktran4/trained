@@ -1,5 +1,5 @@
 /* Trained — offline app shell, cache-first (this is a tiny static app, content rarely changes) */
-var VERSION = 'trained-6fbf7a7e';
+var VERSION = 'trained-c86a4c6a';
 var ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
