@@ -763,7 +763,11 @@ function releaseWakeLock(){
   try{ if (wakeLock){ wakeLock.release(); wakeLock = null; } } catch(e){ /* ignore */ }
 }
 document.addEventListener('visibilitychange', function(){
-  if (document.visibilityState === 'visible' && timerRunning) acquireWakeLock();
+  if (document.visibilityState === 'visible'){
+    if (timerRunning) acquireWakeLock();
+    renderHome();
+    renderWeight();
+  }
 });
 
 function flashScreen(){
