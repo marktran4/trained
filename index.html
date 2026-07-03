@@ -155,7 +155,7 @@ h2:first-child{margin-top:0}
 .sheet h3{font-size:19px; font-weight:800; margin-bottom:14px}
 .sheet .seg{display:flex; gap:8px; margin-bottom:12px}
 .sheet .seg button{
-  flex:1; padding:12px 0; border-radius:10px; font-weight:700;
+  flex:1; padding:12px 2px; border-radius:10px; font-weight:700; font-size:13px;
   background:var(--bg); border:1px solid var(--border); color:var(--muted);
 }
 .sheet .seg button.on{border-color:var(--accent); color:var(--accent)}
@@ -164,6 +164,15 @@ h2:first-child{margin-top:0}
 .sheetactions button{flex:1; padding:14px 0; border-radius:12px; font-weight:800}
 #cancelLogBtn{background:var(--bg); border:1px solid var(--border); color:var(--text)}
 #confirmLogBtn{background:var(--accent); color:var(--accent-ink)}
+#closeDayDetailBtn{background:var(--bg); border:1px solid var(--border); color:var(--text)}
+
+.daydetaillist{margin-bottom:14px}
+.daydetailrow{
+  padding:12px 0; border-bottom:1px solid var(--border);
+  font-size:15px; font-weight:700;
+}
+.daydetailrow:last-child{border-bottom:none}
+.daydetailnote{color:var(--muted); font-weight:600; margin-left:6px}
 
 .modal{
   position:fixed; left:16px; right:16px; top:8%; max-height:84vh; overflow-y:auto;
@@ -270,11 +279,20 @@ h2:first-child{margin-top:0}
   <div class="seg" id="whenSeg">
     <button type="button" data-when="today" class="on">Today</button>
     <button type="button" data-when="yesterday">Yesterday</button>
+    <button type="button" data-when="2days">2 days ago</button>
   </div>
   <input type="text" id="noteInput" placeholder="Note (optional)" maxlength="60">
   <div class="sheetactions">
     <button id="cancelLogBtn" type="button">Cancel</button>
     <button id="confirmLogBtn" type="button">Log</button>
+  </div>
+</div>
+
+<div id="dayDetailSheet" class="sheet">
+  <h3 id="dayDetailTitle">Day</h3>
+  <div id="dayDetailList" class="daydetaillist"></div>
+  <div class="sheetactions">
+    <button id="closeDayDetailBtn" type="button">Close</button>
   </div>
 </div>
 
@@ -356,6 +374,11 @@ function dateDiffDays(fromStr, toStr){
   var b = new Date(t[0], t[1]-1, t[2]);
   return Math.round((b - a) / 86400000);
 }
+function weekdayAbbrev(dateStr){
+  var parts = dateStr.split('-').map(Number);
+  var dt = new Date(parts[0], parts[1]-1, parts[2]);
+  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+}
 function genId(){ return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, function(c){
@@ -386,6 +409,10 @@ var catCapNoteEl = document.getElementById('catCapNote');
 var exportBtnEl = document.getElementById('exportBtn');
 var exportNoteEl = document.getElementById('exportNote');
 var navBtns = Array.prototype.slice.call(document.querySelectorAll('.navbtn'));
+var dayDetailSheetEl = document.getElementById('dayDetailSheet');
+var dayDetailTitleEl = document.getElementById('dayDetailTitle');
+var dayDetailListEl = document.getElementById('dayDetailList');
+var closeDayDetailBtn = document.getElementById('closeDayDetailBtn');
 
 var timerDisplayEl = document.getElementById('timerDisplay');
 var presetRowEl = document.getElementById('presetRow');
@@ -473,7 +500,7 @@ function renderWeekStrip(){
     var ds = toLocalDate(dt);
     var trained = state.sessions.some(function(s){ return s.date === ds; });
     var isToday = ds === t;
-    html += '<div class="daycell' + (isToday ? ' istoday' : '') + '">' +
+    html += '<div class="daycell' + (isToday ? ' istoday' : '') + '" data-date="' + ds + '">' +
       '<span class="daylabel">' + labels[i] + '</span>' +
       '<span class="daydot' + (trained ? ' on' : '') + '"></span>' +
     '</div>';
@@ -489,10 +516,48 @@ function render28Grid(){
     var dt = new Date(parts[0], parts[1]-1, parts[2]-i);
     var ds = toLocalDate(dt);
     var trained = state.sessions.some(function(s){ return s.date === ds; });
-    html += '<span class="gdot' + (trained ? ' on' : '') + '" title="' + ds + '"></span>';
+    html += '<span class="gdot' + (trained ? ' on' : '') + '" data-date="' + ds + '" title="' + ds + '"></span>';
   }
   grid28El.innerHTML = html;
 }
+
+function formatDateNice(dateStr){
+  if (dateStr === today()) return 'Today';
+  if (dateStr === daysAgo(1)) return 'Yesterday';
+  var parts = dateStr.split('-').map(Number);
+  var dt = new Date(parts[0], parts[1]-1, parts[2]);
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return weekdayAbbrev(dateStr) + ' ' + dt.getDate() + ' ' + months[dt.getMonth()];
+}
+
+function openDayDetail(dateStr){
+  if (!dateStr) return;
+  dayDetailTitleEl.textContent = formatDateNice(dateStr);
+  var sessionsThatDay = state.sessions.filter(function(s){ return s.date === dateStr; });
+  dayDetailListEl.innerHTML = sessionsThatDay.length === 0
+    ? '<p class="fineprint">Nothing logged.</p>'
+    : sessionsThatDay.map(function(s){
+        var cat = state.categories.find(function(c){ return c.id === s.categoryId; });
+        var name = escapeHtml(cat ? cat.name : 'Deleted category');
+        var note = s.note ? '<span class="daydetailnote">' + escapeHtml(s.note) + '</span>' : '';
+        return '<div class="daydetailrow">' + name + note + '</div>';
+      }).join('');
+  sheetOverlayEl.classList.add('show');
+  dayDetailSheetEl.classList.add('show');
+}
+function closeDayDetail(){
+  sheetOverlayEl.classList.remove('show');
+  dayDetailSheetEl.classList.remove('show');
+}
+weekstripEl.addEventListener('click', function(e){
+  var cell = e.target.closest('.daycell');
+  if (cell) openDayDetail(cell.getAttribute('data-date'));
+});
+grid28El.addEventListener('click', function(e){
+  var dot = e.target.closest('.gdot');
+  if (dot) openDayDetail(dot.getAttribute('data-date'));
+});
+closeDayDetailBtn.addEventListener('click', closeDayDetail);
 
 function removeTodayEntry(categoryId){
   var t = today();
@@ -528,6 +593,10 @@ function openLogSheet(catId){
   var cat = state.categories.find(function(c){ return c.id === catId; });
   if (!cat) return;
   sheetTitleEl.textContent = 'Log ' + cat.name;
+  // Relabel with actual weekday names (not "yesterday"/"2 days ago") — easier
+  // to match against memory ("I trained legs Wednesday") than counting back.
+  whenSegEl.querySelector('[data-when="yesterday"]').textContent = weekdayAbbrev(daysAgo(1));
+  whenSegEl.querySelector('[data-when="2days"]').textContent = weekdayAbbrev(daysAgo(2));
   Array.prototype.forEach.call(whenSegEl.querySelectorAll('button'), function(b){
     b.classList.toggle('on', b.getAttribute('data-when') === 'today');
   });
@@ -550,13 +619,14 @@ cancelLogBtn.addEventListener('click', closeLogSheet);
 sheetOverlayEl.addEventListener('click', function(){
   if (logSheetEl.classList.contains('show')) closeLogSheet();
   if (settingsModalEl.classList.contains('show')) closeSettings();
+  if (dayDetailSheetEl.classList.contains('show')) closeDayDetail();
 });
 settingsOverlayEl.addEventListener('click', closeSettings);
 
 confirmLogBtn.addEventListener('click', function(){
   if (!pendingCatId) return;
   var when = whenSegEl.querySelector('.on').getAttribute('data-when');
-  var date = when === 'today' ? today() : daysAgo(1);
+  var date = when === 'today' ? today() : when === 'yesterday' ? daysAgo(1) : daysAgo(2);
   var note = noteInputEl.value.trim();
   var entry = { date: date, categoryId: pendingCatId };
   if (note) entry.note = note;
