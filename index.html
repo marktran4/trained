@@ -320,13 +320,19 @@ function defaultState(){
   };
 }
 
+function backupCorruptState(raw){
+  // Unparsable/unexpected data is about to be overwritten by the next save() —
+  // stash it so it isn't silently lost forever.
+  try { localStorage.setItem(KEY + '.corrupt-backup', raw); } catch(e){ /* best effort */ }
+}
+
 function load(){
   var raw;
   try { raw = localStorage.getItem(KEY); } catch(e){ return defaultState(); }
   if (!raw) return defaultState();
   var parsed;
-  try { parsed = JSON.parse(raw); } catch(e){ return defaultState(); }
-  if (!parsed || parsed.schemaVersion !== 1) return defaultState();
+  try { parsed = JSON.parse(raw); } catch(e){ backupCorruptState(raw); return defaultState(); }
+  if (!parsed || parsed.schemaVersion !== 1) { backupCorruptState(raw); return defaultState(); }
   parsed.categories = Array.isArray(parsed.categories) ? parsed.categories : [];
   parsed.sessions = Array.isArray(parsed.sessions) ? parsed.sessions : [];
   parsed.weights = Array.isArray(parsed.weights) ? parsed.weights : [];
@@ -755,7 +761,10 @@ function playBeep(){
 async function acquireWakeLock(){
   try{
     if ('wakeLock' in navigator){
-      wakeLock = await navigator.wakeLock.request('screen');
+      var lock = await navigator.wakeLock.request('screen');
+      // timerRunning may have flipped false (Pause/Reset) while this request
+      // was in flight — don't let a late resolve overwrite a deliberate release.
+      if (timerRunning) wakeLock = lock; else lock.release();
     }
   } catch(e){ /* not supported / denied, ignore */ }
 }
