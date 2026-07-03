@@ -168,11 +168,14 @@ h2:first-child{margin-top:0}
 
 .daydetaillist{margin-bottom:14px}
 .daydetailrow{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
   padding:12px 0; border-bottom:1px solid var(--border);
   font-size:15px; font-weight:700;
 }
 .daydetailrow:last-child{border-bottom:none}
+.daydetailmain{flex:1; min-width:0}
 .daydetailnote{color:var(--muted); font-weight:600; margin-left:6px}
+.daydetaildel{font-size:12px; font-weight:700; color:var(--danger); padding:8px 4px; white-space:nowrap}
 
 .modal{
   position:fixed; left:16px; right:16px; top:8%; max-height:84vh; overflow-y:auto;
@@ -530,9 +533,9 @@ function formatDateNice(dateStr){
   return weekdayAbbrev(dateStr) + ' ' + dt.getDate() + ' ' + months[dt.getMonth()];
 }
 
-function openDayDetail(dateStr){
-  if (!dateStr) return;
-  dayDetailTitleEl.textContent = formatDateNice(dateStr);
+var dayDetailDate = null;
+
+function renderDayDetailList(dateStr){
   var sessionsThatDay = state.sessions.filter(function(s){ return s.date === dateStr; });
   dayDetailListEl.innerHTML = sessionsThatDay.length === 0
     ? '<p class="fineprint">Nothing logged.</p>'
@@ -540,14 +543,26 @@ function openDayDetail(dateStr){
         var cat = state.categories.find(function(c){ return c.id === s.categoryId; });
         var name = escapeHtml(cat ? cat.name : 'Deleted category');
         var note = s.note ? '<span class="daydetailnote">' + escapeHtml(s.note) + '</span>' : '';
-        return '<div class="daydetailrow">' + name + note + '</div>';
+        var idx = state.sessions.indexOf(s);
+        return '<div class="daydetailrow">' +
+          '<span class="daydetailmain">' + name + note + '</span>' +
+          '<button class="daydetaildel" data-idx="' + idx + '" type="button">Remove</button>' +
+        '</div>';
       }).join('');
+}
+
+function openDayDetail(dateStr){
+  if (!dateStr) return;
+  dayDetailDate = dateStr;
+  dayDetailTitleEl.textContent = formatDateNice(dateStr);
+  renderDayDetailList(dateStr);
   sheetOverlayEl.classList.add('show');
   dayDetailSheetEl.classList.add('show');
 }
 function closeDayDetail(){
   sheetOverlayEl.classList.remove('show');
   dayDetailSheetEl.classList.remove('show');
+  dayDetailDate = null;
 }
 weekstripEl.addEventListener('click', function(e){
   var cell = e.target.closest('.daycell');
@@ -558,6 +573,17 @@ grid28El.addEventListener('click', function(e){
   if (dot) openDayDetail(dot.getAttribute('data-date'));
 });
 closeDayDetailBtn.addEventListener('click', closeDayDetail);
+dayDetailListEl.addEventListener('click', function(e){
+  var btn = e.target.closest('.daydetaildel');
+  if (!btn) return;
+  var idx = parseInt(btn.getAttribute('data-idx'), 10);
+  if (idx > -1 && idx < state.sessions.length){
+    state.sessions.splice(idx, 1);
+    save();
+    renderHome();
+    if (dayDetailDate) renderDayDetailList(dayDetailDate);
+  }
+});
 
 function removeTodayEntry(categoryId){
   var t = today();
