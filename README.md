@@ -44,3 +44,4 @@ and a bodyweight log with a chart.
 ```
 python3 projects/gym-tracker/deploy.py "commit message"
 ```
+
