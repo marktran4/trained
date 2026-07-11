@@ -83,6 +83,9 @@ h2:first-child{margin-top:0}
 .gdot:active{opacity:0.7}
 .gdot.on{background:var(--accent)}
 
+.h2row{display:flex; align-items:baseline; justify-content:space-between}
+.count28{font-size:14px; font-weight:800; color:var(--accent); letter-spacing:0; text-transform:none}
+
 .fineprint{font-size:12px; color:var(--muted); margin:8px 0 0}
 
 /* timer */
@@ -236,7 +239,7 @@ h2:first-child{margin-top:0}
     <div id="cards"></div>
     <h2>This week</h2>
     <div id="weekstrip" class="weekstrip"></div>
-    <h2>Last 28 days</h2>
+    <h2 class="h2row">Last 28 days <span id="count28" class="count28"></span></h2>
     <div id="grid28" class="grid28"></div>
   </section>
 
@@ -285,7 +288,9 @@ h2:first-child{margin-top:0}
     <button type="button" data-when="today" class="on">Today</button>
     <button type="button" data-when="yesterday">Yesterday</button>
     <button type="button" data-when="2days">2 days ago</button>
+    <button type="button" data-when="custom">Pick day</button>
   </div>
+  <input type="date" id="customDateInput" style="display:none">
   <input type="text" id="noteInput" placeholder="Note (optional)" maxlength="60">
   <div class="sheetactions">
     <button id="cancelLogBtn" type="button">Cancel</button>
@@ -395,11 +400,13 @@ function escapeHtml(s){
 var cardsEl = document.getElementById('cards');
 var weekstripEl = document.getElementById('weekstrip');
 var grid28El = document.getElementById('grid28');
+var count28El = document.getElementById('count28');
 var sheetOverlayEl = document.getElementById('sheetOverlay');
 var logSheetEl = document.getElementById('logSheet');
 var sheetTitleEl = document.getElementById('sheetTitle');
 var whenSegEl = document.getElementById('whenSeg');
 var noteInputEl = document.getElementById('noteInput');
+var customDateInputEl = document.getElementById('customDateInput');
 var cancelLogBtn = document.getElementById('cancelLogBtn');
 var confirmLogBtn = document.getElementById('confirmLogBtn');
 var toastEl = document.getElementById('toast');
@@ -517,13 +524,16 @@ function render28Grid(){
   var t = today();
   var parts = t.split('-').map(Number);
   var html = '';
+  var trainedCount = 0;
   for (var i=27; i>=0; i--){
     var dt = new Date(parts[0], parts[1]-1, parts[2]-i);
     var ds = toLocalDate(dt);
     var trained = state.sessions.some(function(s){ return s.date === ds; });
+    if (trained) trainedCount++;
     html += '<span class="gdot' + (trained ? ' on' : '') + '" data-date="' + ds + '" title="' + ds + '"></span>';
   }
   grid28El.innerHTML = html;
+  count28El.textContent = trainedCount + ' / 28 days';
 }
 
 function formatDateNice(dateStr){
@@ -628,6 +638,10 @@ function openLogSheet(catId){
   Array.prototype.forEach.call(whenSegEl.querySelectorAll('button'), function(b){
     b.classList.toggle('on', b.getAttribute('data-when') === 'today');
   });
+  // Custom-day picker starts hidden; today is the newest allowed date.
+  customDateInputEl.value = today();
+  customDateInputEl.max = today();
+  customDateInputEl.style.display = 'none';
   noteInputEl.value = '';
   sheetOverlayEl.classList.add('show');
   logSheetEl.classList.add('show');
@@ -642,6 +656,11 @@ whenSegEl.addEventListener('click', function(e){
   if (!btn) return;
   Array.prototype.forEach.call(whenSegEl.querySelectorAll('button'), function(b){ b.classList.remove('on'); });
   btn.classList.add('on');
+  var isCustom = btn.getAttribute('data-when') === 'custom';
+  customDateInputEl.style.display = isCustom ? 'block' : 'none';
+  if (isCustom && customDateInputEl.showPicker){
+    try { customDateInputEl.showPicker(); } catch(e){ /* not supported / not user-gesture */ }
+  }
 });
 cancelLogBtn.addEventListener('click', closeLogSheet);
 sheetOverlayEl.addEventListener('click', function(){
@@ -654,7 +673,18 @@ settingsOverlayEl.addEventListener('click', closeSettings);
 confirmLogBtn.addEventListener('click', function(){
   if (!pendingCatId) return;
   var when = whenSegEl.querySelector('.on').getAttribute('data-when');
-  var date = when === 'today' ? today() : when === 'yesterday' ? daysAgo(1) : daysAgo(2);
+  var date;
+  if (when === 'today') date = today();
+  else if (when === 'yesterday') date = daysAgo(1);
+  else if (when === '2days') date = daysAgo(2);
+  else {
+    // custom: only accept a valid YYYY-MM-DD that isn't in the future
+    date = customDateInputEl.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today()){
+      customDateInputEl.focus();
+      return;
+    }
+  }
   var note = noteInputEl.value.trim();
   var entry = { date: date, categoryId: pendingCatId };
   if (note) entry.note = note;
