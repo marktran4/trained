@@ -1,0 +1,10 @@
+{
+  "name": "Trained Spike",
+  "short_name": "Spike",
+  "description": "Throwaway test: does a Shortcut's data reach an installed web app?",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0d0f",
+  "theme_color": "#0d0d0f"
+}
