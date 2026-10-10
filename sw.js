@@ -1,6 +1,6 @@
 /* Trained — offline app shell, cache-first (this is a tiny static app, content rarely changes) */
-var VERSION = 'trained-fef4033b';
-var ASSETS = ['./', 'index.html', 'styles.css', 'app.js', 'logic.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
+var VERSION = 'trained-d4fb12d0';
+var ASSETS = ['./', 'index.html', 'styles.css', 'app.js', 'logic.js', 'habits.js', 'habits-ui.js', 'bigshoulders-900.woff2', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
