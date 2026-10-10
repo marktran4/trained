@@ -12,15 +12,21 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-180.png">
+<link rel="preload" href="bigshoulders-900.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
 <header>
-  <h1>Trained</h1>
+  <div class="brand"><h1>Trained</h1><span id="headDate" class="headdate"></span></div>
+  <div class="headbtns">
+  <button id="syncBtn" class="iconbtn" type="button" aria-label="Sync from Health">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></svg>
+  </button>
   <button id="settingsBtn" class="iconbtn" type="button" aria-label="Settings">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
+  </div>
 </header>
 
 <div id="saveBanner" class="savebanner" role="alert" hidden>
@@ -29,7 +35,10 @@
 </div>
 
 <main>
-  <section id="list" aria-label="Categories"></section>
+  <section id="habits" class="habits" aria-label="Habits"></section>
+
+  <h2 class="gymhead">Gym · days since</h2>
+  <section id="list" class="gymstrip" aria-label="Gym categories"></section>
 
   <section class="history" aria-label="History">
     <div class="histhead">
@@ -47,21 +56,10 @@
 <!-- shared overlay for the sheets -->
 <div id="overlay" class="overlay"></div>
 
-<!-- backdate sheet -->
-<div id="logSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="logTitle">
-  <h3 id="logTitle">Log</h3>
-  <div class="seg" id="whenSeg">
-    <button type="button" data-when="today" class="on">Today</button>
-    <button type="button" data-when="d1"></button>
-    <button type="button" data-when="d2"></button>
-    <button type="button" data-when="custom">Pick day</button>
-  </div>
-  <input type="date" id="customDate" class="hidden" aria-label="Pick a day">
-  <input type="text" id="logNote" placeholder="Note (optional)" maxlength="60" aria-label="Note">
-  <div class="sheetactions">
-    <button id="logCancel" type="button" class="btn">Cancel</button>
-    <button id="logConfirm" type="button" class="btn primary">Log</button>
-  </div>
+<!-- habit sheet (detail, slip confirm, runs, sleep) -->
+<div id="habitOverlay" class="overlay"></div>
+<div id="habitSheet" class="sheet habitsheet" role="dialog" aria-modal="true" aria-label="Habit">
+  <div id="habitSheetBody"></div>
 </div>
 
 <!-- day sheet -->
@@ -89,7 +87,23 @@
     <button id="closeSettings" type="button" class="textbtn">Done</button>
   </div>
 
-  <h4>Categories</h4>
+  <h4>Habits</h4>
+  <div id="habitList"></div>
+  <div class="addcatrow addhabitrow">
+    <select id="newHabitType" aria-label="Habit type">
+      <option value="abstain">Quit</option>
+      <option value="limit">Limit</option>
+      <option value="frequency">Weekly</option>
+      <option value="rate">Sleep</option>
+    </select>
+    <input type="text" id="newHabitName" placeholder="Name" maxlength="20" aria-label="New habit name">
+    <button id="addHabit" type="button" class="btn">Add</button>
+  </div>
+  <p class="fineprint">Quit: counts days since your last slip. Limit: uses in the last 12 months. Weekly: runs a week (Health runs land on the first Weekly habit). Sleep: nights over your hours, from the Health Shortcut. Names stay on this phone.</p>
+  <label class="goalrow">Goal year starts <input type="date" id="goalStart" aria-label="Goal year start"></label>
+  <p id="goalNote" class="fineprint"></p>
+
+  <h4>Gym categories</h4>
   <div id="categoryList"></div>
   <div class="addcatrow">
     <input type="text" id="newCat" placeholder="New category" maxlength="20" aria-label="New category name">
