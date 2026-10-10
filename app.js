@@ -102,6 +102,16 @@ function doUndo() {
 }
 const sessionsSnap = () => ({ kind: 'sessions', data: clone(state.sessions) });
 
+// One entry per day: these act on EVERY session on `date`, so a legacy
+// same-day duplicate can't survive a change/remove and keep showing in the list.
+function clearDay(date) {
+  state.sessions = state.sessions.filter((s) => s.date !== date);
+}
+function setDay(date, catId, note) {
+  clearDay(date);
+  state.sessions.push(note ? { date, categoryId: catId, note } : { date, categoryId: catId });
+}
+
 /* ---------- confirm sheet ---------- */
 const confirmSheet = $('confirmSheet');
 const confirmOverlay = $('confirmOverlay');
@@ -163,12 +173,7 @@ async function logOnDate(date, catId, note) {
   // re-find: state may have changed while the sheet was open
   const again = entryForDate(state.sessions, date);
   const snap = sessionsSnap();
-  if (again) {
-    again.session.categoryId = catId;
-    if (note) again.session.note = note;
-  } else {
-    state.sessions.push(note ? { date, categoryId: catId, note } : { date, categoryId: catId });
-  }
+  setDay(date, catId, note || (again && again.session.note) || '');
   save(); render();
   showToast('Changed to ' + cat.name, snap);
   return true;
@@ -238,7 +243,19 @@ function renderHistory() {
 
 /* ---------- list interactions ---------- */
 async function tapRow(catId) {
-  await logOnDate(today(), catId, '');
+  const t = today();
+  const existing = entryForDate(state.sessions, t);
+  if (existing && existing.session.categoryId === catId) {
+    const cat = catById(catId);
+    const ok = await askConfirm('Remove today\'s ' + (cat ? cat.name : 'entry') + '?', '', 'Remove');
+    if (!ok) return;
+    const snap = sessionsSnap();
+    clearDay(t);
+    save(); render();
+    showToast('Removed', snap);
+    return;
+  }
+  await logOnDate(t, catId, '');
 }
 
 listEl.addEventListener('click', (e) => {
@@ -383,8 +400,7 @@ dayBody.addEventListener('click', (ev) => {
     if (existing) {
       // explicit change inside the day sheet: no extra confirm, Undo covers it
       const snap = sessionsSnap();
-      existing.session.categoryId = catId;
-      if (note) existing.session.note = note;
+      setDay(date, catId, note || existing.session.note || '');
       save(); closeSheets(); render();
       showToast('Changed to ' + catById(catId).name, snap);
     } else {
@@ -406,7 +422,7 @@ dayBody.addEventListener('click', (ev) => {
     showToast('Note saved', snap);
   } else if (what === 'remove' && existing) {
     const snap = sessionsSnap();
-    state.sessions.splice(existing.index, 1);
+    clearDay(date);
     save(); closeSheets(); render();
     showToast('Removed', snap);
   }
