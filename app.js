@@ -1,7 +1,7 @@
 import {
   MAX_CATEGORIES, PALETTE, toLocalDate, addDays, weekdayAbbrev, formatDateNice, isValidDate,
   entryForDate, recentLog, sortRows, trainedDaysInLast, gridDates, monthSpan, colorFor, nextFreeColor,
-  firstLetter, validateBackup, summarizeState, dateDiffDays
+  firstLetter, remapCategories, validateBackup, summarizeState, dateDiffDays
 } from './logic.js';
 
 const KEY = 'trained.v1';
@@ -664,7 +664,28 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+/* ---------- one-time category reset (2026-10-10) ---------- */
+// Mark asked for his phone's list to become Chest/Shoulders/Legs/Cardio/Back
+// with Push/Pull/Full Body gone. Runs once per device (flag key), stashes the
+// prior data, and offers Undo. Sessions are untouched.
+const CATS_FLAG_KEY = 'trained.v1.cats-reset-2026-10-10';
+function migrateCategoriesOnce() {
+  try { if (localStorage.getItem(CATS_FLAG_KEY)) return null; } catch (e) { return null; }
+  const before = clone(state);
+  const next = remapCategories(state.categories, ['Chest', 'Shoulders', 'Legs', 'Cardio', 'Back'], ['Push', 'Pull', 'Full Body'], genId);
+  const changed = JSON.stringify(next.map((c) => [c.id, c.name])) !== JSON.stringify(state.categories.map((c) => [c.id, c.name]));
+  if (changed) {
+    try { localStorage.setItem(KEY + '.pre-categories', JSON.stringify(before)); } catch (e) { /* best effort */ }
+    state.categories = next;
+    if (!save()) return null; // storage blocked: leave the flag unset so it retries
+  }
+  try { localStorage.setItem(CATS_FLAG_KEY, String(Date.now())); } catch (e) { /* ignore */ }
+  return changed ? before : null;
+}
+const catsBefore = migrateCategoriesOnce();
+
 render();
+if (catsBefore) showToast('Categories updated', { kind: 'state', data: catsBefore });
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
