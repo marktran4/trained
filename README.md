@@ -14,13 +14,13 @@ weights, plans, rest timer or weight tracking. One screen.
 
 ## What it does
 
-- **Category list** - one row per category (Push/Pull/Legs/Full Body/Cardio by
+- **Category list** - one row per category (Chest/Shoulders/Legs/Cardio/Back by
   default), name on the left, a dotted leader, days since on the right. Stalest
   first; never-trained at the top. **Tap a row to log today in one tap**, with
   an Undo toast. The "..." on a row opens the backdate sheet (Today / the two
   previous weekdays / pick a day, plus an optional note).
 - **One entry per day.** Logging onto a day that already has a different
-  category asks "Change today from Push to Legs?" first.
+  category asks "Change today from Chest to Legs?" first.
 - **History** - last 8 weeks as a Monday-first calendar. Trained days are filled
   with the category colour plus its first letter. Header shows "N / 28 days".
   Tap any day to change its category, edit the note, remove it, or log onto it.
