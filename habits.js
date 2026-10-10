@@ -84,13 +84,17 @@ export function frequencyStats(logs, today, gy, target) {
   const perDay = runsPerDay(logs.filter((l) => l.date <= today), t.minMinutes);
   const weekCount = (monday) => { let n = 0; for (let i = 0; i < 7; i++) n += perDay.get(addDays(monday, i)) || 0; return n; };
   const thisWeek = weekCount(mondayOf(today));
-  if (!gy || gy.before) return { thisWeek, weeksHit: 0, completedWeeks: 0, paceNeed: 0, ok: null, maxPossible: t.weeksPerYear, perWeek: t.perWeek, weeksPerYear: t.weeksPerYear, weeks: [] };
+  if (!gy || gy.before) return { thisWeek, weeksHit: 0, weeksCounted: 0, paceNeed: 0, ok: null, maxPossible: t.weeksPerYear, perWeek: t.perWeek, weeksPerYear: t.weeksPerYear, weeks: [] };
   const weeks = [];
   for (let w = 0; w <= gy.weekIndex; w++) weeks.push(weekCount(addDays(gy.start, w * 7)));
-  const done = gy.completedWeeks; // the current week only counts once Sunday has ended
-  const weeksHit = weeks.slice(0, done).filter((n) => n >= t.perWeek).length;
+  // A week counts as soon as it's hit (it can't be un-hit without removing a run), or as a
+  // miss once its Sunday has ended. Pace only looks at finished weeks. (Mark, 2026-10-11)
+  const done = gy.completedWeeks;
+  const currentHit = (weeks[gy.weekIndex] || 0) >= t.perWeek;
+  const weeksHit = weeks.slice(0, done).filter((n) => n >= t.perWeek).length + (currentHit ? 1 : 0);
+  const weeksCounted = done + (currentHit ? 1 : 0);
   const paceNeed = Math.ceil(done * t.weeksPerYear / 52);
-  return { thisWeek, weeksHit, completedWeeks: done, paceNeed, ok: weeksHit >= paceNeed, maxPossible: weeksHit + (52 - done), perWeek: t.perWeek, weeksPerYear: t.weeksPerYear, weeks };
+  return { thisWeek, weeksHit, weeksCounted, paceNeed, ok: weeksHit >= paceNeed, maxPossible: weeksHit + (52 - weeksCounted), perWeek: t.perWeek, weeksPerYear: t.weeksPerYear, weeks };
 }
 
 /* ---------- rate (sleep) ---------- */
