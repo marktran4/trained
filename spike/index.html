@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spike</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spike">
+<meta name="theme-color" content="#0d0d0f">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+/* Throwaway spike for HABITS-SPEC.md "Health ingest". Same tokens as Trained. */
+:root{--bg:#0d0d0f; --card:#17181b; --border:#2a2c30; --text:#f2f3f4; --sub:#c5c8ce; --muted:#8a8f98; --accent:#2dbfb7; --warn:#e8b339; --danger:#e0575c; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--text); font:15px/1.45 -apple-system,"SF Pro Text",system-ui,sans-serif; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums}
+main{max-width:520px; margin:0 auto; padding:calc(16px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom))}
+h1{font-size:13px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:0 0 14px}
+h2{font-size:12px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:26px 0 8px}
+.ctx{display:inline-block; padding:6px 12px; border-radius:999px; font-weight:700; font-size:14px; border:1px solid currentColor}
+.ctx.app{color:var(--accent)} .ctx.safari{color:var(--warn)}
+.verdict{margin-top:14px; padding:14px; border-radius:12px; background:var(--card); border-left:4px solid var(--muted)}
+.verdict.pass{border-color:var(--accent)} .verdict.fail{border-color:var(--warn)}
+.verdict b{display:block; font-size:17px; margin-bottom:4px}
+.counts{display:grid; grid-template-columns:1fr auto auto; gap:4px 14px; font-size:14px; margin-top:10px; color:var(--sub)}
+.counts span:nth-child(-n+3){color:var(--muted); font-size:12px}
+button{font:inherit; font-weight:600; min-height:48px; border-radius:12px; border:1px solid var(--border); background:var(--card); color:var(--text); padding:0 16px; cursor:pointer}
+button.primary{background:var(--accent); border-color:var(--accent); color:#06201e}
+button.danger{color:var(--danger)}
+.row{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+.row button{flex:1 1 140px}
+textarea{width:100%; min-height:90px; margin-top:10px; font:13px ui-monospace,Menlo,monospace; color:var(--text); background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px}
+.entry{padding:12px 0; border-bottom:1px solid var(--border)}
+.entry:first-child{border-top:1px solid var(--border)}
+.meta{font-size:13px; color:var(--muted)}
+.meta b{color:var(--sub)}
+.tablewrap{overflow-x:auto; margin-top:8px}
+table{border-collapse:collapse; font-size:13px; width:100%}
+th,td{text-align:left; padding:4px 8px 4px 0; border-bottom:1px solid var(--border); white-space:nowrap}
+th{color:var(--muted); font-weight:600}
+.total{font-size:22px; font-weight:700; margin-top:8px}
+.total small{font-size:13px; font-weight:500; color:var(--muted)}
+.flag{color:var(--warn)}
+.ok{color:var(--accent)}
+pre{white-space:pre-wrap; word-break:break-all; font:12px ui-monospace,Menlo,monospace; color:var(--muted); background:var(--card); padding:8px; border-radius:8px; margin:8px 0 0; max-height:140px; overflow:auto}
+details{margin-top:8px} summary{cursor:pointer; color:var(--sub)}
+ol{padding-left:20px; margin:6px 0} li{margin:4px 0}
+code{font:13px ui-monospace,Menlo,monospace; background:var(--card); padding:1px 5px; border-radius:5px; word-break:break-all}
+</style>
+</head>
+<body>
+<main>
+  <h1>Trained · Shortcut spike</h1>
+  <span id="ctx" class="ctx"></span>
+  <div id="verdict" class="verdict"></div>
+
+  <h2>Clipboard fallback</h2>
+  <p class="meta">Run the Shortcut, come back here, then tap Paste. iOS shows a small "Paste" bubble to allow it.</p>
+  <div class="row">
+    <button id="pasteBtn" class="primary" type="button">Paste from Shortcut</button>
+  </div>
+  <textarea id="pasteBox" placeholder="If the button doesn't work, long-press here and Paste" hidden></textarea>
+
+  <h2>Entries stored in this app</h2>
+  <div id="entries"></div>
+  <div class="row">
+    <button id="clearBtn" class="danger" type="button">Clear entries</button>
+  </div>
+
+  <h2>How to run the test</h2>
+  <details open>
+    <summary>Steps (about 10 minutes)</summary>
+    <ol>
+      <li>In Safari, open this page and Share → <b>Add to Home Screen</b>. Name it Spike.</li>
+      <li>Build the Shortcut from <code>spike/README.md</code> (sleep version), or the 2-action quick test first.</li>
+      <li>Run the Shortcut. It copies the data and opens this page's address.</li>
+      <li>Note where it opened: Safari (amber badge) or the Spike app (teal badge).</li>
+      <li>Open the <b>Spike icon</b> on your home screen. Does the verdict say PASS?</li>
+      <li>Either way, tap <b>Paste from Shortcut</b> in the Spike app. That's the fallback.</li>
+      <li>Screenshot the Spike app's verdict and sleep table and send them to Claude.</li>
+    </ol>
+  </details>
+</main>
+
+<script>
+var KEY = 'spike.v1';
+var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+var CTX = standalone ? 'app' : 'safari';
+var LABEL = { app: 'Home-screen app', safari: 'Safari' };
+
+function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
+function save(list) { try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, 20))); return true; } catch (e) { return false; } }
+function add(src, raw) {
+  var list = load();
+  list.unshift({ at: new Date().toISOString(), ctx: CTX, src: src, raw: raw });
+  if (!save(list)) alertBox('Could not save to storage in this context.');
+}
+
+// ---- parsing (pure; also run by spike/parse.test.mjs-style checks) ----
+function toDate(s) {
+  if (!s) return null;
+  var d = new Date(s);
+  if (!isNaN(d)) return d;
+  d = new Date(s.replace(/\s+at\s+/i, ' ').replace(/(\d)\s*(am|pm)/i, '$1 $2'));
+  return isNaN(d) ? null : d;
+}
+function durToMin(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  var m;
+  if ((m = s.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/))) return m[3] != null ? (+m[1]) * 60 + (+m[2]) + (+m[3]) / 60 : (+m[1]) * 60 + (+m[2]);
+  var h = s.match(/(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours)\b/i), mi = s.match(/(\d+(?:\.\d+)?)\s*(m|min|mins|minute|minutes)\b/i);
+  if (h || mi) return (h ? +h[1] * 60 : 0) + (mi ? +mi[1] : 0);
+  if (/^\d+(\.\d+)?$/.test(s)) return +s > 1000 ? +s / 60 : +s; // big bare number = seconds (guess)
+  return null;
+}
+function stage(v) {
+  var x = (v || '').toLowerCase();
+  if (x.indexOf('in bed') >= 0 || x === 'inbed') return 'In bed';
+  if (x.indexOf('awake') >= 0) return 'Awake';
+  if (x.indexOf('core') >= 0) return 'Core';
+  if (x.indexOf('deep') >= 0) return 'Deep';
+  if (x.indexOf('rem') >= 0) return 'REM';
+  if (x.indexOf('asleep') >= 0 || x.indexOf('unspecified') >= 0) return 'Asleep (unspecified)';
+  return 'Other';
+}
+function parse(raw) {
+  return raw.split(/;;|\n/).map(function (l) { return l.trim(); }).filter(Boolean).map(function (line) {
+    var p = line.split('|').map(function (s) { return s.trim(); });
+    var s = toDate(p[1]), e = toDate(p[2]);
+    var viaDates = s && e ? (e - s) / 60000 : null;
+    var min = viaDates != null ? viaDates : durToMin(p[3]);
+    return { value: p[0] || '', stage: stage(p[0]), start: s, end: e, rawStart: p[1] || '', rawEnd: p[2] || '', dur: p[3] || '', source: p[4] || '(no source)', min: min == null ? null : Math.round(min), via: viaDates != null ? 'dates' : (min != null ? 'duration' : 'none') };
+  });
+}
+function summarise(items) {
+  var bySource = {};
+  items.forEach(function (it) {
+    var s = bySource[it.source] || (bySource[it.source] = {});
+    s[it.stage] = (s[it.stage] || 0) + (it.min || 0);
+  });
+  var ASLEEP = ['Core', 'Deep', 'REM', 'Asleep (unspecified)'];
+  var out = Object.keys(bySource).map(function (src) {
+    var st = bySource[src];
+    var asleep = ASLEEP.reduce(function (a, k) { return a + (st[k] || 0); }, 0);
+    return { source: src, stages: st, asleep: asleep, hasStages: !!(st.Core || st.Deep || st.REM) };
+  });
+  var ends = items.map(function (i) { return i.end; }).filter(Boolean).sort(function (a, b) { return a - b; });
+  return { sources: out, lastEnd: ends.length ? ends[ends.length - 1] : null, unparsed: items.filter(function (i) { return i.min == null; }).length };
+}
+// ---- end parsing ----
+
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function hm(min) { min = Math.round(min); return Math.floor(min / 60) + 'h ' + String(min % 60).padStart(2, '0') + 'm'; }
+function alertBox(msg) { document.getElementById('verdict').insertAdjacentHTML('beforeend', '<p class="flag">' + esc(msg) + '</p>'); }
+
+function renderEntry(e) {
+  var items = parse(e.raw), sum = summarise(items);
+  var head = '<div class="meta"><b>' + (e.src === 'url' ? 'Via URL' : 'Via paste') + '</b> · written in <b>' + LABEL[e.ctx] + '</b> · ' + new Date(e.at).toLocaleString() + ' · ' + items.length + ' samples</div>';
+  var body = '';
+  if (items.length && items[0].stage !== 'Other' || items.length > 1) {
+    body += sum.sources.map(function (s) {
+      var rows = Object.keys(s.stages).map(function (k) { return '<tr><td>' + esc(k) + '</td><td>' + hm(s.stages[k]) + '</td></tr>'; }).join('');
+      return '<div class="meta" style="margin-top:10px">Source: <b>' + esc(s.source) + '</b> · ' + (s.hasStages ? '<span class="ok">stages split (Core/Deep/REM)</span>' : '<span class="flag">no stage split</span>') + '</div>' +
+        '<div class="total">' + hm(s.asleep) + ' <small>asleep (Core + Deep + REM + unspecified) · ' + (s.asleep >= 450 ? '<span class="ok">clears 7.5h</span>' : '<span class="flag">under 7.5h</span>') + '</small></div>' +
+        '<div class="tablewrap"><table><tr><th>Stage</th><th>Total</th></tr>' + rows + '</table></div>';
+    }).join('');
+    if (sum.sources.length > 1) body += '<p class="flag">More than one source wrote sleep. Totals are per source; adding them would double-count.</p>';
+    if (sum.unparsed) body += '<p class="flag">' + sum.unparsed + ' samples had no usable time. See the raw lines.</p>';
+    if (sum.lastEnd) body += '<div class="meta" style="margin-top:6px">Woke (last sample end): <b>' + sum.lastEnd.toLocaleString() + '</b></div>';
+    body += '<details><summary>Sample lines (' + items.length + ')</summary><div class="tablewrap"><table><tr><th>Value</th><th>Min</th><th>From</th><th>Start</th><th>End</th><th>Source</th></tr>' +
+      items.map(function (i) { return '<tr><td>' + esc(i.value) + '</td><td>' + (i.min == null ? '?' : i.min) + '</td><td>' + i.via + '</td><td>' + esc(i.rawStart) + '</td><td>' + esc(i.rawEnd) + '</td><td>' + esc(i.source) + '</td></tr>'; }).join('') + '</table></div></details>';
+  }
+  body += '<details><summary>Raw payload</summary><pre>' + esc(e.raw) + '</pre></details>';
+  return '<div class="entry">' + head + body + '</div>';
+}
+
+function render() {
+  var ctxEl = document.getElementById('ctx');
+  ctxEl.textContent = 'Running in: ' + LABEL[CTX];
+  ctxEl.className = 'ctx ' + CTX;
+  var list = load();
+  var n = function (src, ctx) { return list.filter(function (e) { return e.src === src && e.ctx === ctx; }).length; };
+  var v = document.getElementById('verdict'), html;
+  if (CTX === 'app') {
+    if (n('url', 'app')) { v.className = 'verdict pass'; html = '<b>PASS: the URL reached the installed app</b>The Shortcut can hand data straight to Trained. Fully automatic.'; }
+    else if (n('paste', 'app')) { v.className = 'verdict fail'; html = '<b>URL: no entry here. Paste: works</b>If the Shortcut opened Safari, the installed app keeps separate storage. Plan on the one-tap paste button.'; }
+    else { v.className = 'verdict'; html = '<b>Nothing here yet</b>Run the Shortcut, then come back to this app.'; }
+  } else {
+    v.className = 'verdict';
+    html = '<b>You are in Safari</b>Entries here say nothing about the installed app. ' + (n('url', 'safari') ? 'The Shortcut did open Safari (' + n('url', 'safari') + ' URL entries here). Now open the Spike icon on your home screen.' : 'Add this page to your home screen first (step 1).');
+  }
+  v.innerHTML = html + '<div class="counts"><span>Written via</span><span>Safari</span><span>App</span><span>URL</span><span>' + n('url', 'safari') + '</span><span>' + n('url', 'app') + '</span><span>Paste</span><span>' + n('paste', 'safari') + '</span><span>' + n('paste', 'app') + '</span></div>';
+  document.getElementById('entries').innerHTML = list.length ? list.map(renderEntry).join('') : '<p class="meta">None yet.</p>';
+}
+
+// URL handoff: data rides in the hash, so it never reaches GitHub's servers.
+(function ingestFromHash() {
+  var h = location.hash || '';
+  var i = h.indexOf('ingest=');
+  if (i < 0) return;
+  var raw = h.slice(i + 7);
+  try { raw = decodeURIComponent(raw); } catch (e) { /* keep raw */ }
+  add('url', raw);
+  history.replaceState(null, '', location.pathname + location.search);
+})();
+
+document.getElementById('pasteBtn').addEventListener('click', function () {
+  var box = document.getElementById('pasteBox');
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(function (t) {
+      if (t && t.trim()) { add('paste', t.trim()); render(); } else { box.hidden = false; }
+    }).catch(function () { box.hidden = false; box.focus(); });
+  } else { box.hidden = false; box.focus(); }
+});
+document.getElementById('pasteBox').addEventListener('paste', function (e) {
+  var t = (e.clipboardData || window.clipboardData).getData('text');
+  if (t && t.trim()) { e.preventDefault(); add('paste', t.trim()); this.hidden = true; render(); }
+});
+var clearArmed = false;
+document.getElementById('clearBtn').addEventListener('click', function () {
+  if (!clearArmed) { clearArmed = true; this.textContent = 'Tap again to clear all'; var b = this; setTimeout(function () { clearArmed = false; b.textContent = 'Clear entries'; }, 3000); return; }
+  try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
+  clearArmed = false; this.textContent = 'Clear entries'; render();
+});
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {});
+render();
+</script>
+</body>
+</html>
