@@ -72,6 +72,15 @@ export function entryForDate(sessions, date) {
   return null;
 }
 
+// The one entry per date that the app treats as real (last in array order wins).
+// Legacy duplicates stay in storage but never count anywhere, so the list and
+// the history grid always agree.
+export function effectiveSessions(sessions) {
+  const byDate = new Map();
+  for (const s of sessions) byDate.set(s.date, s);
+  return Array.from(byDate.values());
+}
+
 export function lastSessionDate(sessions, categoryId) {
   let last = null;
   for (const s of sessions) {
@@ -80,7 +89,7 @@ export function lastSessionDate(sessions, categoryId) {
   return last;
 }
 
-// Uses ALL sessions (including legacy duplicates), null if never trained.
+// Null if never trained. sortRows passes effectiveSessions() so shadowed duplicates don't count.
 export function daysSince(sessions, categoryId, today) {
   const last = lastSessionDate(sessions, categoryId);
   return last ? dateDiffDays(last, today) : null;
@@ -88,7 +97,8 @@ export function daysSince(sessions, categoryId, today) {
 
 // Stalest first; never-trained first of all. Stable: ties keep category order.
 export function sortRows(categories, sessions, today) {
-  const rows = categories.map((cat, index) => ({ cat, index, daysSince: daysSince(sessions, cat.id, today) }));
+  const eff = effectiveSessions(sessions);
+  const rows = categories.map((cat, index) => ({ cat, index, daysSince: daysSince(eff, cat.id, today) }));
   rows.sort((a, b) => {
     if (a.daysSince === null && b.daysSince === null) return a.index - b.index;
     if (a.daysSince === null) return -1;
