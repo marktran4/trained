@@ -1,6 +1,6 @@
 import {
   MAX_CATEGORIES, PALETTE, toLocalDate, addDays, weekdayAbbrev, formatDateNice, isValidDate,
-  entryForDate, sortRows, trainedDaysInLast, gridDates, monthSpan, colorFor, nextFreeColor,
+  entryForDate, recentLog, sortRows, trainedDaysInLast, gridDates, monthSpan, colorFor, nextFreeColor,
   firstLetter, validateBackup, summarizeState, dateDiffDays
 } from './logic.js';
 
@@ -183,10 +183,31 @@ async function logOnDate(date, catId, note) {
 const listEl = $('list');
 const gridEl = $('grid');
 const legendEl = $('legend');
+const logEl = $('log');
 
 function render() {
   renderList();
   renderHistory();
+  renderLog();
+}
+
+function renderLog() {
+  const t = today();
+  const items = recentLog(state.sessions, t, 28);
+  if (!items.length) {
+    logEl.innerHTML = '<p class="empty">Nothing logged in the last 28 days.</p>';
+    return;
+  }
+  logEl.innerHTML = items.map((s) => {
+    const cat = catById(s.categoryId);
+    const sw = cat ? '<i class="swatch" style="background:' + catColor(cat) + '"></i>' : '<i class="swatch orphan"></i>';
+    const name = cat ? escapeHtml(cat.name) : 'Deleted category';
+    const note = s.note ? '<span class="lognote">' + escapeHtml(s.note) + '</span>' : '';
+    return '<button type="button" class="logrow" data-date="' + s.date + '">' +
+      '<span class="logdate">' + formatDateNice(s.date, t) + '</span>' +
+      '<span class="logmain">' + sw + '<span class="logname' + (cat ? '' : ' deleted') + '">' + name + '</span>' + note + '</span>' +
+    '</button>';
+  }).join('');
 }
 
 function renderList() {
@@ -269,6 +290,10 @@ listEl.addEventListener('keydown', (e) => {
   if (e.target.closest('.more')) return;
   const row = e.target.closest('.row');
   if (row) { e.preventDefault(); tapRow(row.getAttribute('data-cat')); }
+});
+logEl.addEventListener('click', (e) => {
+  const row = e.target.closest('.logrow[data-date]');
+  if (row) openDaySheet(row.getAttribute('data-date'));
 });
 gridEl.addEventListener('click', (e) => {
   const cell = e.target.closest('.cell[data-date]');
