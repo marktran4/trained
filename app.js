@@ -13,11 +13,11 @@ function defaultState() {
   return {
     schemaVersion: 1,
     categories: [
-      { id: 'push', name: 'Push' },
-      { id: 'pull', name: 'Pull' },
+      { id: 'chest', name: 'Chest' },
+      { id: 'shoulders', name: 'Shoulders' },
       { id: 'legs', name: 'Legs' },
-      { id: 'full', name: 'Full Body' },
-      { id: 'cardio', name: 'Cardio' }
+      { id: 'cardio', name: 'Cardio' },
+      { id: 'back', name: 'Back' }
     ],
     sessions: [],
     weights: []
