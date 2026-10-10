@@ -176,6 +176,46 @@ export function firstLetter(name) {
   return ch ? ch.toUpperCase() : '?';
 }
 
+/* ---------- one-time category reset ---------- */
+// Rebuild the category list as `targetNames` (in that order), reusing any
+// existing category with the same name (case-insensitive) so its history stays
+// linked, dropping names in `dropNames`, and keeping any other custom
+// categories after the targets. Existing categories keep the colour they
+// showed before; new ones get the first unused palette colour.
+// Sessions are never touched: dropped categories' history shows as deleted.
+export function remapCategories(categories, targetNames, dropNames, makeId) {
+  const key = (n) => String(n || '').trim().toLowerCase();
+  const drop = new Set(dropNames.map(key));
+  const targets = new Set(targetNames.map(key));
+  // Remember each existing category's colour and whether Mark picked it (explicit)
+  // or it came from its old list position.
+  const byName = new Map();
+  const meta = new Map(); // copy -> {color, explicit}
+  const copyOf = (c, i) => {
+    const copy = Object.assign({}, c);
+    meta.set(copy, { color: colorFor(c, i).toLowerCase(), explicit: isHexColor(c.color) });
+    return copy;
+  };
+  categories.forEach((c, i) => { if (!byName.has(key(c.name))) byName.set(key(c.name), copyOf(c, i)); });
+  const out = [];
+  for (const name of targetNames) out.push(byName.get(key(name)) || { id: makeId(), name });
+  categories.forEach((c, i) => {
+    const k = key(c.name);
+    if (!targets.has(k) && !drop.has(k)) out.push(copyOf(c, i));
+  });
+  // Colours: explicit picks first, then old position colours, then new
+  // categories. Anything that would repeat a colour gets the first free one.
+  const used = new Set();
+  const take = (c, wanted) => {
+    const col = wanted && !used.has(wanted) ? wanted : PALETTE.find((p) => !used.has(p)) || defaultColor(used.size);
+    c.color = col; used.add(col.toLowerCase());
+  };
+  for (const c of out) { const m = meta.get(c); if (m && m.explicit) take(c, m.color); }
+  for (const c of out) { const m = meta.get(c); if (m && !m.explicit) take(c, m.color); }
+  for (const c of out) if (!meta.has(c)) take(c, null);
+  return out;
+}
+
 /* ---------- backup / restore ---------- */
 function monthYear(date) {
   const d = parseDate(date);
