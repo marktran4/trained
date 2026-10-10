@@ -27,7 +27,7 @@ logger: no sets, reps, exercise weights, plans, rest timer or weight tracking.
     last one and when the oldest drops out. Same deliberate logging as Quit.
   - **Weekly** (runs): weeks hit out of weeks finished, against a goal of N of 52
     weeks with N runs a week. **Tap the card = log a run today** with Undo; "..."
-    opens history, backdating and remove. A finished week counts once Sunday ends.
+    opens history, backdating and remove. A week counts as hit the moment it reaches its runs; a short week counts as missed once Sunday ends.
   - **Sleep**: % of nights at or over your hours this goal year, the last 30 days,
     and nights with no data (left out of the %, and shown so gaps can't flatter it).
     Tap for the last 7 nights with Good / Short overrides.
