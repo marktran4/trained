@@ -118,6 +118,15 @@ export function trainedDaysInLast(sessions, today, n = 28) {
   return seen.size;
 }
 
+// Written log: the shown entry per date within the last `n` days (today
+// included), newest first.
+export function recentLog(sessions, today, n = 28) {
+  const start = addDays(today, -(n - 1));
+  return effectiveSessions(sessions)
+    .filter((s) => s.date >= start && s.date <= today)
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}
+
 /* ---------- history grid ---------- */
 // Monday-first weeks (rows) ending with the week that contains `today`.
 // Cells after today are still returned; callers render them blank.
