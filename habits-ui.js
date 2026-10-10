@@ -81,7 +81,7 @@ export function initHabits(ctx) {
       const s = frequencyStats(logsFor(h.id), t, g, tg);
       if (!g || g.before) return { ok: null, num: String(s.thisWeek), unit: 'of ' + s.perWeek + '<br>this week', ctx: g ? 'Goal year starts ' + dayMonth(g.start) : 'Set the goal-year start in settings', gauge: gauge({}), dcap: 'weeks of 52', more: true };
       return {
-        ok: s.ok, num: String(s.weeksHit), unit: 'of ' + s.completedWeeks + '<br>weeks hit',
+        ok: s.ok, num: String(s.weeksHit), unit: 'of ' + s.weeksCounted + '<br>weeks hit',
         ctx: s.thisWeek + ' of ' + s.perWeek + ' this week · pace needs ' + s.paceNeed,
         gauge: gauge({ frac: s.weeksHit / 52, ticks: [{ f: s.weeksPerYear / 52, color: INK }, { f: s.paceNeed / 52, color: NEEDLE, w: 4 }] }),
         dcap: 'weeks of 52', more: true
@@ -221,7 +221,7 @@ export function initHabits(ctx) {
         html += '<div class="label">Which day?</div>' + dateField() + '<div class="sheetactions">' + btn('back', 'Cancel') + btn('rundate', 'Log a run', 'primary') + '</div>';
       } else {
         html += '<ul class="hstats"><li><b>' + s.thisWeek + ' of ' + s.perWeek + '</b> this week</li>' +
-          (g && !g.before ? '<li>' + s.weeksHit + ' of ' + s.completedWeeks + ' weeks hit · pace needs ' + s.paceNeed + ' · goal ' + s.weeksPerYear + ' of 52</li><li>Still reachable: up to ' + s.maxPossible + '</li>' : '') + '</ul>' +
+          (g && !g.before ? '<li>' + s.weeksHit + ' of ' + s.weeksCounted + ' weeks hit · pace needs ' + s.paceNeed + ' · goal ' + s.weeksPerYear + ' of 52</li><li>Still reachable: up to ' + s.maxPossible + '</li>' : '') + '</ul>' +
           btn('runtoday', 'Log a run today', 'wide primary') + btn('date', 'Log a run on an earlier day', 'wide') + recentList(h, 8) + btn('close', 'Close', 'wide ghost');
       }
     }
