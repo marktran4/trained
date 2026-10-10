@@ -1,8 +1,10 @@
 import {
-  MAX_CATEGORIES, PALETTE, toLocalDate, addDays, weekdayAbbrev, formatDateNice, isValidDate,
+  MAX_CATEGORIES, PALETTE, toLocalDate, formatDateNice, isValidDate,
   entryForDate, recentLog, sortRows, trainedDaysInLast, gridDates, monthSpan, colorFor, nextFreeColor,
   firstLetter, remapCategories, validateBackup, summarizeState, dateDiffDays
 } from './logic.js';
+import { validateHabitData, summarizeHabits } from './habits.js';
+import { initHabits } from './habits-ui.js';
 
 const KEY = 'trained.v1';
 const BACKUP_KEY = 'trained.v1.lastBackup';
@@ -98,6 +100,7 @@ function doUndo() {
   save();
   render();
   if (settingsModal.classList.contains('show')) renderSettings();
+  habitsUI.refreshSheet();
   hideToast();
 }
 const sessionsSnap = () => ({ kind: 'sessions', data: clone(state.sessions) });
@@ -186,6 +189,7 @@ const legendEl = $('legend');
 const logEl = $('log');
 
 function render() {
+  habitsUI.render();
   renderList();
   renderHistory();
   renderLog();
@@ -210,6 +214,8 @@ function renderLog() {
   }).join('');
 }
 
+// Gym strip: one colour tile per category, stalest first. Tap = log today.
+// Backdating and notes live in the history grid's day sheet.
 function renderList() {
   const t = today();
   if (state.categories.length === 0) {
@@ -217,17 +223,12 @@ function renderList() {
     return;
   }
   listEl.innerHTML = sortRows(state.categories, state.sessions, t).map((r) => {
-    let days, cls = 'days', aria;
-    if (r.daysSince === null) { days = 'never'; cls += ' never'; aria = 'never trained'; }
-    else if (r.daysSince === 0) { days = 'today ✓'; cls += ' today'; aria = 'trained today'; }
-    else { days = r.daysSince + 'd'; aria = r.daysSince + (r.daysSince === 1 ? ' day ago' : ' days ago'); }
-    return '<div class="row" role="button" tabindex="0" data-cat="' + escapeHtml(r.cat.id) + '" aria-label="Log ' + escapeHtml(r.cat.name) + ', ' + aria + '">' +
-      '<i class="swatch" style="background:' + catColor(r.cat) + '"></i>' +
-      '<span class="rname">' + escapeHtml(r.cat.name) + '</span>' +
-      '<span class="leader"></span>' +
-      '<span class="' + cls + '">' + days + '</span>' +
-      '<button type="button" class="more" data-more="' + escapeHtml(r.cat.id) + '" aria-label="Log ' + escapeHtml(r.cat.name) + ' for another day">&hellip;</button>' +
-    '</div>';
+    let days, aria;
+    if (r.daysSince === null) { days = '–'; aria = 'never trained'; }
+    else if (r.daysSince === 0) { days = '✓'; aria = 'trained today'; }
+    else { days = String(r.daysSince); aria = r.daysSince + (r.daysSince === 1 ? ' day ago' : ' days ago'); }
+    return '<div class="tile" role="button" tabindex="0" data-cat="' + escapeHtml(r.cat.id) + '" style="background:' + catColor(r.cat) + '" aria-label="Log ' + escapeHtml(r.cat.name) + ', ' + aria + '">' +
+      '<b>' + days + '</b><span>' + escapeHtml(r.cat.name) + '</span></div>';
   }).join('');
 }
 
@@ -280,16 +281,13 @@ async function tapRow(catId) {
 }
 
 listEl.addEventListener('click', (e) => {
-  const more = e.target.closest('.more');
-  if (more) { e.stopPropagation(); openLogSheet(more.getAttribute('data-more')); return; }
-  const row = e.target.closest('.row');
-  if (row) tapRow(row.getAttribute('data-cat'));
+  const tile = e.target.closest('.tile');
+  if (tile) tapRow(tile.getAttribute('data-cat'));
 });
 listEl.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
-  if (e.target.closest('.more')) return;
-  const row = e.target.closest('.row');
-  if (row) { e.preventDefault(); tapRow(row.getAttribute('data-cat')); }
+  const tile = e.target.closest('.tile');
+  if (tile) { e.preventDefault(); tapRow(tile.getAttribute('data-cat')); }
 });
 logEl.addEventListener('click', (e) => {
   const row = e.target.closest('.logrow[data-date]');
@@ -302,72 +300,15 @@ gridEl.addEventListener('click', (e) => {
 
 /* ---------- shared sheet overlay ---------- */
 const overlay = $('overlay');
-const logSheet = $('logSheet');
 const daySheet = $('daySheet');
 
 function openSheet(el) { overlay.classList.add('show'); el.classList.add('show'); }
 function closeSheets() {
   overlay.classList.remove('show');
-  logSheet.classList.remove('show');
   daySheet.classList.remove('show');
-  pendingCatId = null;
   dayDate = null;
 }
 overlay.addEventListener('click', closeSheets);
-
-/* ---------- backdate sheet ---------- */
-let pendingCatId = null;
-const whenSeg = $('whenSeg');
-const customDate = $('customDate');
-const logNote = $('logNote');
-
-function selectWhen(which) {
-  whenSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.getAttribute('data-when') === which));
-  customDate.classList.toggle('hidden', which !== 'custom');
-}
-
-function openLogSheet(catId) {
-  const cat = catById(catId);
-  if (!cat) return;
-  pendingCatId = catId;
-  const t = today();
-  $('logTitle').textContent = 'Log ' + cat.name;
-  whenSeg.querySelector('[data-when="d1"]').textContent = weekdayAbbrev(addDays(t, -1));
-  whenSeg.querySelector('[data-when="d2"]').textContent = weekdayAbbrev(addDays(t, -2));
-  selectWhen('today');
-  customDate.max = t;
-  customDate.value = t;
-  logNote.value = '';
-  openSheet(logSheet);
-}
-
-whenSeg.addEventListener('click', (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  const which = btn.getAttribute('data-when');
-  selectWhen(which);
-  if (which === 'custom' && customDate.showPicker) {
-    try { customDate.showPicker(); } catch (err) { /* needs a user gesture / unsupported */ }
-  }
-});
-$('logCancel').addEventListener('click', closeSheets);
-$('logConfirm').addEventListener('click', async () => {
-  if (!pendingCatId) return;
-  const t = today();
-  const which = whenSeg.querySelector('.on').getAttribute('data-when');
-  let date;
-  if (which === 'today') date = t;
-  else if (which === 'd1') date = addDays(t, -1);
-  else if (which === 'd2') date = addDays(t, -2);
-  else {
-    date = customDate.value;
-    if (!isValidDate(date) || date > t) { customDate.focus(); return; }
-  }
-  const catId = pendingCatId;
-  const note = logNote.value.trim().slice(0, 60);
-  closeSheets();
-  await logOnDate(date, catId, note);
-});
 
 /* ---------- day sheet ---------- */
 let dayDate = null;
@@ -503,6 +444,7 @@ function renderSettings() {
   $('newCat').disabled = atCap;
   $('addCat').disabled = atCap;
   $('backupNote').textContent = lastBackupText();
+  habitsUI.renderSettings();
 }
 
 categoryListEl.addEventListener('change', (e) => {
@@ -614,6 +556,8 @@ restoreFile.addEventListener('change', async () => {
   let text;
   try { text = await f.text(); } catch (e) { text = ''; }
   const res = validateBackup(text);
+  const habitErr = res.ok ? validateHabitData(res.state) : null;
+  if (habitErr) { res.ok = false; res.error = habitErr; }
   if (!res.ok) {
     pendingRestore = null;
     restoreActions.hidden = true;
@@ -623,15 +567,26 @@ restoreFile.addEventListener('change', async () => {
     pendingRestore = res.state;
     restoreActions.hidden = false;
     restoreMsg.className = 'restoremsg';
-    restoreMsg.textContent = res.summary + '. This replaces what is on this phone now.';
+    const hs = summarizeHabits(res.state);
+    const keep = keepsCurrentHabits(res.state);
+    restoreMsg.textContent = res.summary + (hs ? ' · ' + hs : '') + '. This replaces what is on this phone now.' +
+      (keep ? ' This backup is from before habits, so your current habits are kept.' : '');
   }
   restoreFile.value = '';
 });
 $('restoreCancel').addEventListener('click', resetRestoreBox);
+
+// A backup made before habits existed has no `habits` field. Restoring it must not wipe them.
+const HABIT_KEYS = ['habits', 'habitLogs', 'sleepNights', 'goalYearStart'];
+function keepsCurrentHabits(incoming) {
+  return incoming.habits === undefined && Array.isArray(state.habits) && state.habits.length > 0;
+}
+const fullSummary = (st) => { const h = summarizeHabits(st); return summarizeState(st) + (h ? ' · ' + h : ''); };
 $('restoreConfirm').addEventListener('click', async () => {
   if (!pendingRestore) return;
   const incoming = pendingRestore;
-  const ok = await askConfirm('Replace your data?', 'Now: ' + summarizeState(state) + '. Backup: ' + summarizeState(incoming) + '.', 'Replace');
+  const keep = keepsCurrentHabits(incoming);
+  const ok = await askConfirm('Replace your data?', 'Now: ' + fullSummary(state) + '. Backup: ' + summarizeState(incoming) + '.' + (keep ? ' Your current habits are kept.' : ''), 'Replace');
   if (!ok) return;
   const snap = { kind: 'state', data: clone(state) };
   try {
@@ -646,6 +601,7 @@ $('restoreConfirm').addEventListener('click', async () => {
   };
   // keep any extra top-level fields the backup carried
   for (const k of Object.keys(incoming)) if (!(k in state)) state[k] = incoming[k];
+  if (keep) for (const k of HABIT_KEYS) if (snap.data[k] !== undefined) state[k] = clone(snap.data[k]);
   save();
   resetRestoreBox();
   closeSettings();
@@ -683,6 +639,19 @@ function migrateCategoriesOnce() {
   return changed ? before : null;
 }
 const catsBefore = migrateCategoriesOnce();
+
+const habitsUI = initHabits({
+  getState: () => state,
+  save,
+  rerender: render,
+  showToast,
+  askConfirm,
+  snapState: () => ({ kind: 'state', data: clone(state) }),
+  escapeHtml,
+  today,
+  genId,
+  openSettings
+});
 
 render();
 if (catsBefore) showToast('Categories updated', { kind: 'state', data: catsBefore });
